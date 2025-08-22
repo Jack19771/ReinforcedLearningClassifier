@@ -1,0 +1,928 @@
+<!-- admin/templates/dashboard.html -->
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Document Classifier{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-subtitle">
+    <span id="currentDate"></span> • Real-time system overview
+</div>
+
+<!-- Stats Row -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card stat-primary h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="stat-label">Total Documents</div>
+                        <div class="stat-number" id="totalDocs">{{ stats.total_documents }}</div>
+                        <div class="text-muted small">
+                            <i class="bi bi-database"></i> <span id="docsGrowth">Loading...</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-file-earmark-text fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card stat-success h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="stat-label">Categories</div>
+                        <div class="stat-number" id="totalAreas">{{ stats.total_areas }}</div>
+                        <div class="text-muted small">
+                            <i class="bi bi-tags"></i> <span id="subareasCount">Loading...</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-tags fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card stat-{% if stats.can_predict %}success{% else %}warning{% endif %} h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="stat-label">Model Accuracy</div>
+                        <div class="stat-number" id="modelAccuracy">{% if stats.can_predict %}Loading...{% else %}—{% endif %}</div>
+                        <div class="text-muted small">
+                            {% if stats.can_predict %}
+                                <i class="bi bi-arrow-up"></i> <span id="trainingExamples">Loading...</span>
+                            {% else %}
+                                <i class="bi bi-exclamation-triangle"></i> Need training data
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-bullseye fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card {% if stats.can_predict %}stat-success{% else %}stat-danger{% endif %} h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="stat-label">Model Status</div>
+                        <div class="stat-number">{{ 'READY' if stats.can_predict else 'TRAINING' }}</div>
+                        <div class="{% if stats.can_predict %}text-success{% else %}text-warning{% endif %} small">
+                            {% if stats.can_predict %}
+                                <i class="bi bi-check-circle"></i> {{ stats.mode|upper }} mode
+                            {% else %}
+                                <i class="bi bi-hourglass-split"></i> Need more data
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-{% if stats.can_predict %}check-circle{% else %}hourglass-split{% endif %} fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <!-- Document Distribution Chart -->
+    <div class="col-xl-6 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-pie-chart me-2"></i>Document Distribution by Category
+            </div>
+            <div class="card-body">
+                <canvas id="categoryChart"></canvas>
+                <div id="noCategoryData" class="text-center py-4" style="display: none;">
+                    <i class="bi bi-pie-chart display-4 text-muted"></i>
+                    <p class="text-muted mt-2">No category data available</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Documents Over Time -->
+    <div class="col-xl-6 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-graph-up me-2"></i>Documents Added (Last 7 Days)
+            </div>
+            <div class="card-body">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Metrics Row -->
+<div class="row mb-4">
+    <!-- Model Performance -->
+    <div class="col-xl-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-speedometer2 me-2"></i>Model Performance Metrics
+            </div>
+            <div class="card-body">
+                <canvas id="performanceChart"></canvas>
+                <div id="noPerformanceData" class="text-center py-4" style="display: none;">
+                    <i class="bi bi-speedometer2 display-4 text-muted"></i>
+                    <p class="text-muted mt-2">Model not trained yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="col-xl-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-bar-chart me-2"></i>Category Breakdown
+            </div>
+            <div class="card-body" id="categoryBreakdown">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="text-muted mt-2">Loading statistics...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-lightning me-2"></i>Quick Actions
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-3 col-md-6 mb-2">
+                        <button class="btn btn-primary w-100" onclick="loadStarterData()">
+                            <i class="bi bi-cloud-download me-2"></i>Load Starter Data
+                        </button>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-2">
+                        <button class="btn btn-warning w-100" onclick="switchMode()">
+                            <i class="bi bi-arrow-repeat me-2"></i>Switch to {{ 'Auto' if stats.mode == 'learning' else 'Learning' }}
+                        </button>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-2">
+                        <button class="btn btn-success w-100" onclick="exportData()">
+                            <i class="bi bi-download me-2"></i>Export Report
+                        </button>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-2">
+                        <button class="btn btn-outline-danger w-100" onclick="clearData()">
+                            <i class="bi bi-trash me-2"></i>Clear Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- CSV Import Section -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-file-earmark-spreadsheet me-2"></i>Import Training Data</span>
+                <a href="/api/csv-template" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-download me-1"></i>Download Template
+                </a>
+            </div>
+            <div class="card-body">
+                <!-- Upload Area -->
+                <div id="uploadArea" class="upload-area mb-3" onclick="document.getElementById('csvFile').click()">
+                    <div class="upload-content">
+                        <i class="bi bi-cloud-upload display-4 text-muted mb-3"></i>
+                        <h5>Drop CSV file here or click to browse</h5>
+                        <p class="text-muted">CSV should contain columns: text, area, subarea (optional)</p>
+                        <small class="text-muted">Maximum file size: 10MB</small>
+                    </div>
+                </div>
+                
+                <input type="file" id="csvFile" accept=".csv" style="display: none;" onchange="handleFileSelect(event)">
+                
+                <!-- Upload Progress -->
+                <div id="uploadProgress" class="upload-progress" style="display: none;">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                            <span class="visually-hidden">Uploading...</span>
+                        </div>
+                        <span id="uploadStatus">Uploading and processing...</span>
+                    </div>
+                    <div class="progress mb-3">
+                        <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div id="uploadDetails" class="small text-muted"></div>
+                </div>
+                
+                <!-- Upload Results -->
+                <div id="uploadResults" style="display: none;">
+                    <div class="alert" id="uploadAlert">
+                        <div id="uploadMessage"></div>
+                        <div id="uploadStats" class="mt-2"></div>
+                        <div id="uploadPreview" class="mt-3"></div>
+                        <div id="uploadErrors" class="mt-3"></div>
+                    </div>
+                    
+                    <!-- Training Section -->
+                    <div id="trainingSection" class="mt-3" style="display: none;">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0"><i class="bi bi-robot me-2"></i>Train Model</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-3">Data uploaded successfully! Train the model to start automatic classification.</p>
+                                <button class="btn btn-success" onclick="trainModel()">
+                                    <i class="bi bi-play-circle me-2"></i>Start Training
+                                </button>
+                                <button class="btn btn-outline-secondary ms-2" onclick="resetUpload()">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Upload More Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Training Progress -->
+                    <div id="trainingProgress" style="display: none;">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <div class="spinner-border text-warning mb-3" role="status">
+                                    <span class="visually-hidden">Training...</span>
+                                </div>
+                                <h6>Training Model...</h6>
+                                <p class="text-muted mb-0">This may take a few moments</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Training Results -->
+                    <div id="trainingResults" style="display: none;">
+                        <div class="alert alert-success">
+                            <h6><i class="bi bi-check-circle me-2"></i>Training Complete!</h6>
+                            <div id="trainingStats"></div>
+                            <button class="btn btn-primary mt-2" onclick="location.reload()">
+                                <i class="bi bi-arrow-clockwise me-2"></i>Refresh Dashboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.upload-area {
+    border: 2px dashed #ddd;
+    border-radius: 10px;
+    padding: 3rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.upload-area:hover {
+    border-color: #4e73df;
+    background: #f0f4ff;
+}
+
+.upload-area.dragover {
+    border-color: #4e73df;
+    background: #e7f3ff;
+    transform: scale(1.02);
+}
+
+.upload-content {
+    pointer-events: none;
+}
+
+.upload-progress {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.preview-table {
+    font-size: 0.875rem;
+}
+
+.error-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+</style>
+
+<script>
+// File upload handling
+let selectedFile = null;
+
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (file) {
+        processFile(file);
+    }
+}
+
+function processFile(file) {
+    selectedFile = file;
+    
+    // Validate file
+    if (!file.name.endsWith('.csv')) {
+        showToast('Please select a CSV file', 'error');
+        return;
+    }
+    
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        showToast('File size too large. Maximum 10MB allowed.', 'error');
+        return;
+    }
+    
+    // Show upload progress
+    document.getElementById('uploadArea').style.display = 'none';
+    document.getElementById('uploadProgress').style.display = 'block';
+    document.getElementById('uploadResults').style.display = 'none';
+    
+    // Upload file
+    uploadFile(file);
+}
+
+function uploadFile(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Update progress
+    updateUploadProgress(20, 'Uploading file...');
+    
+    fetch('/api/upload-csv', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        updateUploadProgress(60, 'Processing CSV...');
+        return response.json();
+    })
+    .then(data => {
+        updateUploadProgress(100, 'Complete!');
+        setTimeout(() => showUploadResults(data), 500);
+    })
+    .catch(error => {
+        console.error('Upload error:', error);
+        showUploadError('Upload failed: ' + error.message);
+    });
+}
+
+function updateUploadProgress(percent, status) {
+    document.getElementById('uploadProgressBar').style.width = percent + '%';
+    document.getElementById('uploadStatus').textContent = status;
+    
+    if (percent < 100) {
+        document.getElementById('uploadDetails').textContent = `Processing ${selectedFile.name} (${formatFileSize(selectedFile.size)})`;
+    }
+}
+
+function showUploadResults(data) {
+    document.getElementById('uploadProgress').style.display = 'none';
+    document.getElementById('uploadResults').style.display = 'block';
+    
+    const alertElement = document.getElementById('uploadAlert');
+    const messageElement = document.getElementById('uploadMessage');
+    const statsElement = document.getElementById('uploadStats');
+    const previewElement = document.getElementById('uploadPreview');
+    const errorsElement = document.getElementById('uploadErrors');
+    
+    if (data.success) {
+        alertElement.className = 'alert alert-success';
+        messageElement.innerHTML = `<h6><i class="bi bi-check-circle me-2"></i>${data.message}</h6>`;
+        
+        // Show stats
+        statsElement.innerHTML = `
+            <div class="row text-center">
+                <div class="col-md-3">
+                    <div class="fw-bold text-primary fs-5">${data.total_rows}</div>
+                    <div class="small text-muted">Total Rows</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="fw-bold text-success fs-5">${data.imported_rows}</div>
+                    <div class="small text-muted">Imported</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="fw-bold text-warning fs-5">${data.errors.length}</div>
+                    <div class="small text-muted">Errors</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="fw-bold text-info fs-5">${Math.round((data.imported_rows/data.total_rows)*100)}%</div>
+                    <div class="small text-muted">Success Rate</div>
+                </div>
+            </div>
+        `;
+        
+        // Show preview
+        if (data.preview && data.preview.length > 0) {
+            let previewHtml = `
+                <h6>Preview of imported data:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm preview-table">
+                        <thead>
+                            <tr>
+                                <th>Row</th>
+                                <th>Text</th>
+                                <th>Area</th>
+                                <th>SubArea</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            data.preview.forEach(row => {
+                previewHtml += `
+                    <tr>
+                        <td>${row.row}</td>
+                        <td>${row.text}</td>
+                        <td><span class="badge bg-primary">${row.area}</span></td>
+                        <td>${row.subarea ? `<span class="badge bg-secondary">${row.subarea}</span>` : '—'}</td>
+                    </tr>
+                `;
+            });
+            
+            previewHtml += '</tbody></table></div>';
+            previewElement.innerHTML = previewHtml;
+        }
+        
+        // Show errors if any
+        if (data.errors && data.errors.length > 0) {
+            let errorsHtml = `
+                <h6 class="text-warning">Errors encountered:</h6>
+                <div class="error-list">
+                    <ul class="list-unstyled">
+            `;
+            
+            data.errors.forEach(error => {
+                errorsHtml += `<li class="text-warning small"><i class="bi bi-exclamation-triangle me-1"></i>${error}</li>`;
+            });
+            
+            errorsHtml += '</ul></div>';
+            errorsElement.innerHTML = errorsHtml;
+        }
+        
+        // Show training section if import was successful
+        if (data.imported_rows > 0) {
+            document.getElementById('trainingSection').style.display = 'block';
+        }
+        
+    } else {
+        alertElement.className = 'alert alert-danger';
+        messageElement.innerHTML = `<h6><i class="bi bi-x-circle me-2"></i>Upload Failed</h6><p>${data.message}</p>`;
+        
+        if (data.errors && data.errors.length > 0) {
+            let errorsHtml = '<ul class="mb-0">';
+            data.errors.forEach(error => {
+                errorsHtml += `<li>${error}</li>`;
+            });
+            errorsHtml += '</ul>';
+            errorsElement.innerHTML = errorsHtml;
+        }
+    }
+}
+
+function trainModel() {
+    document.getElementById('trainingSection').style.display = 'none';
+    document.getElementById('trainingProgress').style.display = 'block';
+    
+    fetch('/api/train-model', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            confirm_training: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('trainingProgress').style.display = 'none';
+        document.getElementById('trainingResults').style.display = 'block';
+        
+        if (data.success) {
+            document.getElementById('trainingStats').innerHTML = `
+                <p><strong>Training completed successfully!</strong></p>
+                <ul class="mb-0">
+                    <li>Documents trained: ${data.message.match(/\d+/)?.[0] || 'Unknown'}</li>
+                    <li>Categories learned: ${data.categories ? data.categories.length : 0}</li>
+                    <li>Model status: ${data.can_predict ? 'Ready for classification' : 'Needs more training'}</li>
+                    <li>Mode: ${data.mode}</li>
+                </ul>
+            `;
+            showToast('Model trained successfully!', 'success');
+        } else {
+            document.getElementById('trainingResults').className = 'alert alert-danger';
+            document.getElementById('trainingStats').innerHTML = `<p><strong>Training failed:</strong> ${data.message}</p>`;
+            showToast('Training failed: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Training error:', error);
+        document.getElementById('trainingProgress').style.display = 'none';
+        showToast('Training failed: ' + error.message, 'error');
+    });
+}
+
+function resetUpload() {
+    document.getElementById('uploadArea').style.display = 'block';
+    document.getElementById('uploadProgress').style.display = 'none';
+    document.getElementById('uploadResults').style.display = 'none';
+    document.getElementById('csvFile').value = '';
+    selectedFile = null;
+}
+
+function showUploadError(message) {
+    document.getElementById('uploadProgress').style.display = 'none';
+    document.getElementById('uploadResults').style.display = 'block';
+    
+    const alertElement = document.getElementById('uploadAlert');
+    const messageElement = document.getElementById('uploadMessage');
+    
+    alertElement.className = 'alert alert-danger';
+    messageElement.innerHTML = `<h6><i class="bi bi-x-circle me-2"></i>Upload Error</h6><p>${message}</p>`;
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Drag and drop functionality
+const uploadArea = document.getElementById('uploadArea');
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    uploadArea.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach(eventName => {
+    uploadArea.addEventListener(eventName, highlight, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    uploadArea.addEventListener(eventName, unhighlight, false);
+});
+
+function highlight(e) {
+    uploadArea.classList.add('dragover');
+}
+
+function unhighlight(e) {
+    uploadArea.classList.remove('dragover');
+}
+
+uploadArea.addEventListener('drop', handleDrop, false);
+
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    
+    if (files.length > 0) {
+        processFile(files[0]);
+    }
+}
+</script>
+    </div>
+</div>
+
+<!-- Recent Documents Table -->
+<div class="row">
+    <div class="col">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-clock-history me-2"></i>Recent Documents</span>
+                <a href="/documents" class="btn btn-outline-primary btn-sm">View All</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Text Preview</th>
+                                <th>Area</th>
+                                <th>SubArea</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody id="documentsTable">
+                            {% for doc in documents %}
+                            <tr>
+                                <td class="fw-bold">#{{ doc[0] }}</td>
+                                <td style="max-width: 300px;">
+                                    <div class="text-truncate">{{ doc[1] }}</div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ doc[2] }}</span>
+                                </td>
+                                <td>
+                                    {% if doc[3] %}
+                                        <span class="badge bg-secondary">{{ doc[3] }}</span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted small">
+                                    {{ doc[4] }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% if documents|length == 0 %}
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox display-1 text-muted"></i>
+                    <h5 class="text-muted mt-3">No documents found</h5>
+                    <p class="text-muted">Load starter data to begin analyzing documents.</p>
+                    <button class="btn btn-primary" onclick="loadStarterData()">
+                        <i class="bi bi-cloud-download me-2"></i>Load Starter Data
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set current date
+document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+});
+
+// Chart.js configuration
+Chart.defaults.font.family = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
+Chart.defaults.color = '#858796';
+
+let categoryChart, timelineChart, performanceChart;
+
+// Load real data on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadRealStats();
+    loadModelPerformance();
+});
+
+function loadRealStats() {
+    fetch('/api/real-stats')
+        .then(response => response.json())
+        .then(data => {
+            updateStatsCards(data);
+            updateCategoryChart(data.category_distribution);
+            updateTimelineChart(data.timeline_data);
+            updateCategoryBreakdown(data.category_percentages);
+        })
+        .catch(error => {
+            console.error('Error loading stats:', error);
+        });
+}
+
+function loadModelPerformance() {
+    fetch('/api/model-performance')
+        .then(response => response.json())
+        .then(data => {
+            updatePerformanceMetrics(data);
+            updatePerformanceChart(data);
+        })
+        .catch(error => {
+            console.error('Error loading performance:', error);
+        });
+}
+
+function updateStatsCards(data) {
+    document.getElementById('totalDocs').textContent = data.basic_stats.total_documents;
+    document.getElementById('totalAreas').textContent = data.basic_stats.total_areas;
+    document.getElementById('docsGrowth').textContent = `${data.basic_stats.total_subareas} SubAreas`;
+    document.getElementById('subareasCount').textContent = `${data.basic_stats.total_subareas} SubCategories`;
+}
+
+function updatePerformanceMetrics(data) {
+    if (data.accuracy > 0) {
+        document.getElementById('modelAccuracy').textContent = data.accuracy + '%';
+        document.getElementById('trainingExamples').textContent = `${data.training_examples} examples`;
+    }
+}
+
+function updateCategoryChart(categoryData) {
+    const ctx = document.getElementById('categoryChart').getContext('2d');
+    
+    if (Object.keys(categoryData).length === 0) {
+        document.getElementById('noCategoryData').style.display = 'block';
+        document.getElementById('categoryChart').style.display = 'none';
+        return;
+    }
+    
+    const labels = Object.keys(categoryData);
+    const data = Object.values(categoryData);
+    const colors = ['#4e73df', '#1cc88a', '#f6c23e', '#36b9cc', '#e74a3b'];
+    
+    if (categoryChart) categoryChart.destroy();
+    
+    categoryChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colors.slice(0, labels.length),
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { usePointStyle: true, padding: 20 }
+                }
+            }
+        }
+    });
+}
+
+function updateTimelineChart(timelineData) {
+    const ctx = document.getElementById('timelineChart').getContext('2d');
+    
+    const labels = timelineData.map(d => d.date);
+    const data = timelineData.map(d => d.count);
+    
+    if (timelineChart) timelineChart.destroy();
+    
+    timelineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Documents Added',
+                data: data,
+                borderColor: '#4e73df',
+                backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                tension: 0.3,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#eaecf4' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+function updatePerformanceChart(performanceData) {
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    
+    if (performanceData.accuracy === 0) {
+        document.getElementById('noPerformanceData').style.display = 'block';
+        document.getElementById('performanceChart').style.display = 'none';
+        return;
+    }
+    
+    if (performanceChart) performanceChart.destroy();
+    
+    performanceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Accuracy', 'Precision', 'Recall', 'F1-Score'],
+            datasets: [{
+                label: 'Score (%)',
+                data: [performanceData.accuracy, performanceData.precision, performanceData.recall, performanceData.f1_score],
+                backgroundColor: ['#4e73df', '#1cc88a', '#f6c23e', '#36b9cc']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { 
+                    beginAtZero: true, 
+                    max: 100,
+                    grid: { color: '#eaecf4' },
+                    ticks: { callback: function(value) { return value + '%'; } }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+function updateCategoryBreakdown(percentages) {
+    const container = document.getElementById('categoryBreakdown');
+    
+    if (Object.keys(percentages).length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="bi bi-pie-chart display-4 text-muted"></i>
+                <p class="text-muted mt-2">No category data</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const colors = ['primary', 'success', 'warning', 'info', 'danger'];
+    let html = '';
+    
+    Object.entries(percentages).forEach(([area, percentage], index) => {
+        const color = colors[index % colors.length];
+        html += `
+            <div class="mb-3">
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">${area}</span>
+                    <span class="fw-bold">${percentage}%</span>
+                </div>
+                <div class="progress mt-1" style="height: 6px;">
+                    <div class="progress-bar bg-${color}" style="width: ${percentage}%"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Action Functions (same as before)
+function loadStarterData() {
+    fetch('/api/load-starter-data', {method: 'POST'})
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                showToast(data.message || 'Error loading data', 'error');
+            }
+        })
+        .catch(error => {
+            showToast('Network error', 'error');
+        });
+}
+
+function switchMode() {
+    const currentMode = '{{ stats.mode }}';
+    const newMode = currentMode === 'learning' ? 'auto' : 'learning';
+    
+    fetch(`/api/mode/${newMode}`, {method: 'POST'})
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                showToast(data.message || 'Error switching mode', 'error');
+            }
+        })
+        .catch(error => {
+            showToast('Network error', 'error');
+        });
+}
+
+function exportData() {
+    showToast('Export functionality coming soon!', 'success');
+}
+
+function clearData() {
+    if (confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
+        showToast('Clear functionality coming soon!', 'success');
+    }
+}
+</script>
+{% endblock %}
