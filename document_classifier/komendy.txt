@@ -31,3 +31,4 @@ kubectl rollout restart deployment admin-deployment
 kubectl rollout restart deployment api-deployment  - rollout no downtime
 
 minikube image load document_classifier-admin:v3
+change ?>?
