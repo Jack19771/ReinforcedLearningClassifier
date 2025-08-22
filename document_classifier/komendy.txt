@@ -1,0 +1,34 @@
+docker build --no-cache -f api/Dockerfile -t my-api .
+docker run -p 8000:8000 my-api   
+
+kubectl apply -f k8s/api-deployment.yaml
+
+minikube image ls | findstr document
+kubectl get deployments
+
+minikube image load document_classifier-api:latest  `
+kubectl logs api-deployment-d94b79445-4px6v
+
+kubectl apply -f k8s/admin-deployment.yaml
+kubectl get deployments
+kubectl apply -f k8s/admin-service.yaml
+
+kubectl get services
+kubectl get pods -w  
+
+minikube dashboard
+kubectl exec -it postgres-master-6456c7c8f9-ktm4b -- psql -U app_user -d document_classifier -c "\l"
+
+docker build -f admin/Dockerfile -t document_classifier-admin:latest .
+minikube image load document_classifier-api:latest
+minikube image load document_classifier-admin:latest
+kubectl rollout restart deployment api-deployment
+kubectl rollout restart deployment admin-deployment
+---- kiedy cache :
+docker build --no-cache -f api/Dockerfile -t document_classifier-api:latest .
+docker build --no-cache -f admin/Dockerfile -t document_classifier-admin:latest .
+kubectl rollout restart deployment admin-deployment
+kubectl rollout restart deployment api-deployment  - rollout no downtime
+
+minikube image load document_classifier-admin:v3
+change ?>?

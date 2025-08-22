@@ -11,15 +11,16 @@ import csv
 import io
 from typing import List
 
+
 # Dodaj ścieżkę do core
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append('/app')
 
 from core.document_service import DocumentService
 
 app = FastAPI(title="Document Classifier Admin")
 
 # Templates
-templates = Jinja2Templates(directory="admin/templates")
+templates = Jinja2Templates(directory="templates")
 
 # Global service
 service = DocumentService()
@@ -270,10 +271,12 @@ def get_real_stats():
         date = datetime.now() - timedelta(days=6-i)
         date_str = date.strftime('%Y-%m-%d')
         
+
+        
         # Policz dokumenty z tego dnia
         count = 0
         for doc in documents:
-            if doc[4].startswith(date_str):
+            if doc[4].strftime('%Y-%m-%d') == date_str:
                 count += 1
         
         timeline_data.append({
