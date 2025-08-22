@@ -24,7 +24,7 @@ spec:
         - name: PYTHONPATH
           value: "/app"
         - name: DB_HOST
-          value: "postgres-master-service"
+          value: "postgres-cluster-rw"
         - name: DB_PORT
           value: "5432"
         - name: DB_NAME
