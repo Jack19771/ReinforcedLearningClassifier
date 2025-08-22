@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+  labels:
+    app: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+      - name: api
+        image: document_classifier-api:v2
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+        env:
+        - name: PYTHONPATH
+          value: "/app"
+        - name: DB_HOST
+          value: "postgres-master-service"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: "document_classifier"
+        - name: DB_USER
+          value: "app_user"
+        - name: DB_PASSWORD
+          value: "app_password"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5

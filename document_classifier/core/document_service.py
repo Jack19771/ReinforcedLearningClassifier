@@ -1,5 +1,5 @@
 # core/document_service.py
-from .database import DatabaseManager
+from .database_pg import DatabaseManager
 from .classifier import ClassificationEngine
 
 class DocumentService:

@@ -1,0 +1,29 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  # API Service
+  api:
+    build: 
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PYTHONPATH=/app
+    
+  # Admin Service (będzie następny)
+  admin:
+    build:
+      context: .
+      dockerfile: admin/Dockerfile
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PYTHONPATH=/app
+    depends_on:
+      - api

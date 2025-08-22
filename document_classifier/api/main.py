@@ -6,7 +6,7 @@ import sys
 import os
 
 # Dodaj ścieżkę do core
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append('/app')
 
 from core.document_service import DocumentService
 

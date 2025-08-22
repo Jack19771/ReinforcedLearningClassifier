@@ -1,6 +1,6 @@
 # test_database.py
 import os
-from core.database import DatabaseManager
+from .database_pg import DatabaseManager
 
 # Test czy działa
 if __name__ == "__main__":

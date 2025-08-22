@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-slave
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: postgres-slave
+  template:
+    metadata:
+      labels:
+        app: postgres-slave
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15
+        ports:
+        - containerPort: 5432
+        env:
+        - name: PGUSER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          value: "app_password"
+        - name: POSTGRES_MASTER_SERVICE
+          value: "postgres-master-service"
+        - name: POSTGRES_REPLICATION_USER
+          value: "replicator"
+        - name: POSTGRES_REPLICATION_PASSWORD
+          value: "repl_password"
+        command:
+          - bash
+          - -c
+          - |
+            echo "Starting PostgreSQL replica..."
+            until pg_isready -h postgres-master-service -p 5432; do
+              echo "Waiting for master..."
+              sleep 2
+            done
+            
+            echo "Master is ready, starting base backup..."
+            rm -rf /var/lib/postgresql/data/*
+            pg_basebackup -h postgres-master-service -D /var/lib/postgresql/data -U replicator -v -P -W
+            
+            echo "standby_mode = 'on'" >> /var/lib/postgresql/data/recovery.conf
+            echo "primary_conninfo = 'host=postgres-master-service port=5432 user=replicator'" >> /var/lib/postgresql/data/recovery.conf
+            echo "primary_slot_name = 'replica_slot'" >> /var/lib/postgresql/data/recovery.conf
+            
+            postgres
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgres-storage
+      volumes:
+      - name: postgres-storage
+        emptyDir: {}
