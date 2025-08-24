@@ -1,47 +1,54 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: admin-deployment
-  labels:
-    app: admin
+ name: admin-deployment
+ labels:
+   app: admin
 spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: admin
-  template:
-    metadata:
-      labels:
-        app: admin
-    spec:
-      containers:
-      - name: admin
-        image: document_classifier-admin:v4
-        imagePullPolicy: Never
-        ports:
-        - containerPort: 8001
-        env:
-        - name: PYTHONPATH
-          value: "/app"
-        - name: DB_HOST
-          value: "postgres-cluster-rw"
-        - name: DB_PORT
-          value: "5432"
-        - name: DB_NAME
-          value: "document_classifier"
-        - name: DB_USER
-          value: "app_user"
-        - name: DB_PASSWORD
-          value: "app_password"
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 8001
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 8001
-          initialDelaySeconds: 5
-          periodSeconds: 5
+ replicas: 3
+ selector:
+   matchLabels:
+     app: admin
+ template:
+   metadata:
+     labels:
+       app: admin
+   spec:
+     containers:
+     - name: admin
+       image: document_classifier-admin:v4
+       imagePullPolicy: Never
+       ports:
+       - containerPort: 8001
+       resources:
+         requests:
+           cpu: 100m
+           memory: 128Mi
+         limits:
+           cpu: 500m
+           memory: 256Mi
+       env:
+       - name: PYTHONPATH
+         value: "/app"
+       - name: DB_HOST
+         value: "postgres-cluster-rw"
+       - name: DB_PORT
+         value: "5432"
+       - name: DB_NAME
+         value: "document_classifier"
+       - name: DB_USER
+         value: "app_user"
+       - name: DB_PASSWORD
+         value: "app_password"
+       livenessProbe:
+         httpGet:
+           path: /
+           port: 8001
+         initialDelaySeconds: 30
+         periodSeconds: 10
+       readinessProbe:
+         httpGet:
+           path: /
+           port: 8001
+         initialDelaySeconds: 5
+         periodSeconds: 5
