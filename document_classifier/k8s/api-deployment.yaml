@@ -16,15 +16,22 @@ spec:
     spec:
       containers:
       - name: api
-        image: document_classifier-api:v2
+        image: document_classifier-api:v5
         imagePullPolicy: Never
         ports:
         - containerPort: 8000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
         env:
         - name: PYTHONPATH
           value: "/app"
         - name: DB_HOST
-          value: "postgres-master-service"
+          value: "postgres-cluster-rw"
         - name: DB_PORT
           value: "5432"
         - name: DB_NAME
