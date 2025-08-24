@@ -1,41 +1,41 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: postgres-cluster
-  namespace: default
+ name: postgres-cluster
+ namespace: default
 spec:
-  instances: 3
+ instances: 3
 
-  postgresql:
-    parameters:
-      max_connections: "200"
-      shared_buffers: "256MB"
-      effective_cache_size: "1GB"
-      
-  bootstrap:
-    initdb:
-      database: document_classifier
-      owner: app_user
-      secret:
-        name: postgres-credentials
+ postgresql:
+   parameters:
+     max_connections: "200"
+     shared_buffers: "256MB"
+     effective_cache_size: "1GB"
+     
+ bootstrap:
+   initdb:
+     database: document_classifier
+     owner: app_user
+     secret:
+       name: postgres-credentials
 
-  storage:
-    size: 1Gi
+ storage:
+   size: 1Gi
 
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "100m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
+ resources:
+   requests:
+     memory: "256Mi"
+     cpu: "100m"
+   limits:
+     memory: "512Mi"
+     cpu: "500m"
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: postgres-credentials
-  namespace: default
+ name: postgres-credentials
+ namespace: default
 type: Opaque
 data:
-  username: YXBwX3VzZXI=        # app_user (base64)
-  password: YXBwX3Bhc3N3b3Jk    # app_password (base64)
+ username: YXBwX3VzZXI=        # app_user (base64)
+ password: YXBwX3Bhc3N3b3Jk    # app_password (base64)

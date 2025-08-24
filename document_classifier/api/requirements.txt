@@ -16,3 +16,4 @@ starlette==0.47.2
 typing-extensions==4.14.1
 pydantic-core==2.33.2
 psycopg2-binary==2.9.7
+pydantic-settings==2.6.0

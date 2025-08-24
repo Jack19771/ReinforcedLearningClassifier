@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: api
-        image: document_classifier-api:v2
+        image: document_classifier-api:v5
         imagePullPolicy: Never
         ports:
         - containerPort: 8000
