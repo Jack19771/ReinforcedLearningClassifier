@@ -1,3 +1,3 @@
 AI powered classifier.
 
-Feel free to for and develop !
+Feel free to fork and develop !
